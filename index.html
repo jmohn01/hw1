@@ -1,0 +1,398 @@
+<html>
+
+<head>
+  <title>Fake Stack Overflow</title>
+  <link rel="stylesheet" href="css/index.css">
+  <script type="module" src="src/index.js"></script>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+    crossorigin="anonymous"></script>
+</head>
+
+<body>
+
+  <!-- BANNER -->
+  <div id="banner" class="banner">
+    <div>
+      <a href="#Questions" class="active" onclick="openQuestions()" id="openQuestionsBtn">Questions</a>
+      <a href="#Tags" onclick="fetchTags()" id="openTagsBtn">Tags</a>
+    </div>
+
+    <div>
+      <a href="#Questions" onclick="openQuestions()">Fake Stack Overflow</a>
+    </div>
+
+    <div style="margin: 2%;">
+      <input type="text" class="form-control" placeholder="Search ..." id="Search" onkeyup="listenForEnter()">
+    </div>
+
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="main" class="main">
+
+    <!-- QUESTIONS -->
+    <div id="Questions">
+      <div class="grid-container" id="QuestionsGrid"></div>
+    </div>
+
+    <!-- Ask A Question -->
+    <div id="AskAQuestion" style="display: none; padding: 1%;">
+
+      <div id="QuestionWarning" style="color: red;"></div>
+
+      <h5>Question Title</h5>
+      <small><i>Title should not be more than 100 characters</i></small><br>
+      <input type="text" id="QuestionTitle" class="form-control" placeholder="Question Title" maxlength="100">
+      <br>
+
+      <h5>Question Text</h5>
+      <small><i>Add details</i></small><br>
+      <textarea id="QuestionText" class="form-control" rows="5"></textarea>
+      <br>
+
+      <h5>Tags</h5>
+      <small><i>Add Keywords separated by whitespace.</i></small><br>
+      <input type="text" id="QuestionTags" class="form-control" placeholder="Tags" maxlength="100">
+      <br>
+
+      <h5>Username</h5>
+      <small><i>Should not be more than 15 characters</i></small><br>
+      <input type="text" id="QuestionUsername" class="form-control" placeholder="Username" maxlength="15">
+      <br>
+
+      <button class="btn btn-primary" id="PostQuestion" onclick="postQuestion()">Post Question</button>
+    </div>
+
+    <div id="Answers" style="display: none; padding: 1%;">
+      <div class="grid-container" id="AnswersHeader"></div>
+      <div class="grid-container" id="AnswersBody"></div>
+      <div id="SubmitAnswerDiv"></div>
+    </div>
+
+    <div id="AnswerAQuestion" style="display: none; padding: 1%;">
+      <h5>Answer Text</h5>
+      <textarea id="AnswerText" class="form-control" rows="5"></textarea>
+      <br>
+
+      <h5>Username</h5>
+      <small><i>Should not be more than 15 characters</i></small><br>
+      <input type="text" id="AnswerUsername" class="form-control" placeholder="Username" maxlength="15">
+      <br>
+      <button class="btn btn-primary" id="PostAnswer" onclick="postAnswer(this.qid)">Post Answer</button>
+    </div>
+
+    <div id="Tags">
+      <div id="TagsGrid" class="grid-container"></div>
+    </div>
+
+
+    <div id="snackbar">Welcome</div>
+  </div>
+
+  <script>
+    function bannerResponsive() {
+      var x = document.getElementById("banner");
+      if (x.className === "banner") {
+        x.className += " responsive";
+      } else {
+        x.className = "banner";
+      }
+    }
+
+    function showSnackbar(message) {
+      const x = document.getElementById("snackbar");
+      x.innerHTML = message;
+      x.className = "show";
+      setTimeout(function () { x.className = x.className.replace("show", ""); }, 3000);
+    }
+
+    function populateQuestions(questions, tags, category) {
+
+      if (!category) category = "All Questions";
+
+      document.getElementById("openQuestionsBtn").classList.add("active");
+      document.getElementById("openTagsBtn").classList.remove("active");
+
+      const QuestionsGrid = document.getElementById('QuestionsGrid');
+      document.getElementById('Questions').style.display = 'block';
+      document.getElementById('AskAQuestion').style.display = 'none';
+      document.getElementById('Answers').style.display = 'none';
+      document.getElementById('AnswerAQuestion').style.display = 'none';
+      document.getElementById('Tags').style.display = 'none';
+
+
+      // Header Row
+      QuestionsGrid.innerHTML = `
+        <div class="grid-item questions-header">
+          <b id="QuestionsNumber">${questions.length} ${questions.length === 1 ? 'Question' : 'Questions'}</b>
+        </div>
+        <div class="grid-item questions-header">
+          <b>${category}</b>
+        </div>
+        <div class="grid-item questions-header">
+          <a href="#AskAQuestion">
+            <button type="button" class="btn btn-primary" onclick="openAskQuestion()" style="background-color: #165A92">Ask A Question</button>
+          </a>
+        </div>
+      `;
+
+      questions.sort((a, b) => {
+        const aDate = new Date(`${a.askedOn} ${a.askedAt}`);
+        const bDate = new Date(`${b.askedOn} ${b.askedAt}`);
+
+        return Date.parse(aDate) - Date.parse(bDate);
+      })
+
+      // Questions row
+      questions.forEach(question => {
+        QuestionsGrid.innerHTML += `
+      <div class="grid-item" onclick="fetchAnswers('${question.qid}')">
+        <b>${question.views} ${question.views == 1 ? 'View' : 'Views'}</b>
+        <br>
+        <b>&emsp;${question.answers.length} ${question.answers.length == 1 ? 'Answer' : 'Answers'}</b>
+      </div>
+      <div class="grid-item" onclick="fetchAnswers('${question.qid}')">
+        <b>${question.title}</b>
+        <br>
+        ${tags.filter(tag => question.tagIds.includes(tag.tid)).map(tag => `<span class="badge rounded-pill bg-secondary">${tag.name}</span>`).join(' ')}
+      </div>
+      <div class="grid-item" onclick="fetchAnswers('${question.qid}')">
+        Asked By ${question.askedBy} <br>
+        On ${question.askedOn} <br>
+        At ${question.askedAt}
+      </div>
+      <hr><hr><hr>
+    `;
+      })
+
+      if (questions.length == 0) QuestionsGrid.innerHTML += "<i>No questions found!</i>";
+    }
+
+
+    function openAskQuestion() {
+      const QuestionsDiv = document.getElementById('Questions');
+      const AskAQuestionDiv = document.getElementById('AskAQuestion');
+
+      QuestionsDiv.style.display = 'none';
+      AskAQuestionDiv.style.display = 'block';
+    }
+
+    function openQuestions() {
+      const QuestionsDiv = document.getElementById('Questions');
+      const AskAQuestionDiv = document.getElementById('AskAQuestion');
+      const AnswersDiv = document.getElementById('Answers');
+
+      QuestionsDiv.style.display = 'block';
+      AskAQuestionDiv.style.display = 'none';
+      AnswersDiv.style.display = 'none';
+
+      refresh();
+    }
+
+    function postQuestion() {
+      const QuestionWarning = document.getElementById('QuestionWarning');
+
+      let filled = true;
+      QuestionWarning.innerHTML = "";
+
+      if (document.getElementById('QuestionTitle').value.length == 0) {
+        QuestionWarning.innerHTML += '<small>Title cannot be empty<small><br>';
+        filled = false;
+      }
+
+      if (document.getElementById('QuestionText').value.length == 0) {
+        QuestionWarning.innerHTML += '<small>Text cannot be empty</small><br>';
+        filled = false;
+      }
+
+      if (document.getElementById('QuestionUsername').value.length == 0) {
+        QuestionWarning.innerHTML += '<small>Username cannot be empty</small><br>';
+        filled = false;
+      }
+
+      if(document.getElementById('QuestionUsername').value.length > 15) {
+        QuestionWarning.innerHTML += '<small>Username cannot be more than 15 characters</small><br>';
+        filled = false;
+      }
+
+      if(!filled) return;
+
+      const QuestionTitle = document.getElementById('QuestionTitle').value;
+      const QuestionText = document.getElementById('QuestionText').value;
+      const QuestionTags = document.getElementById('QuestionTags').value.split(' ');
+      const QuestionUsername = document.getElementById('QuestionUsername').value;
+
+      storeQuestion(QuestionTitle, QuestionText, QuestionTags, QuestionUsername);
+      showSnackbar('Question Posted');
+      document.getElementById('QuestionTitle').value = '';
+      document.getElementById('QuestionText').value = '';
+      document.getElementById('QuestionTags').value = '';
+      document.getElementById('QuestionUsername').value = '';
+    }
+
+    function listenForEnter() {
+      const text = document.getElementById("Search").value;
+      if (event.keyCode == 13) {
+        const tags = getSearchTags(text);
+        if (tags.length == 0) filterQuestions("text", text, "Search Results");
+        else filterQuestions("tags", tags, "Search Results");
+      }
+    }
+
+    function getSearchTags(text) {
+      const reBrackets = /\[(.*?)\]/g;
+      const list = [];
+      let found;
+      while (found = reBrackets.exec(text)) {
+        list.push(found[1]);
+      };
+      return list;
+    }
+
+    function populateAnswers(question, answers) {
+      const AnswersDiv = document.getElementById('Answers');
+      const AnswersHeader = document.getElementById('AnswersHeader');
+      const AnswersBody = document.getElementById('AnswersBody');
+      const SubmitAnswerDiv = document.getElementById('SubmitAnswerDiv');
+
+      document.getElementById("Questions").style.display = 'none';
+      document.getElementById('AnswerAQuestion').style.display = 'none';
+
+      AnswersDiv.style.display = 'block';
+
+      // Header Row
+      AnswersHeader.innerHTML = `
+        <div class="grid-item questions-header">
+          <b id="AnswersNumber">${answers.length} ${answers.length === 1 ? 'Answer' : 'Answers'}</b>
+        </div>
+        <div class="grid-item questions-header">
+          <b>${question.title}</b>
+        </div>
+        <div class="grid-item questions-header">
+          <a href="#AskAQuestion">
+            <button type="button" class="btn btn-primary" onclick="openAskQuestion()" style="background-color: #165A92">Ask A Question</button>
+          </a>
+        </div>
+
+        <div class="grid-item questions-header">
+          <b id="AnswersNumber">${question.views} ${question.views === 1 ? 'View' : 'Views'}</b>
+        </div>
+        <div class="grid-item questions-header">
+          <p>${question.text}</p>
+        </div>
+        <div class="grid-item questions-header">
+          Asked By ${question.askedBy} <br>
+          On ${question.askedOn} <br>
+          At ${question.askedAt}
+        </div>
+        <hr><hr><hr>
+      `;
+
+
+      answers.forEach(answer => {
+        AnswersBody.innerHTML += `
+          <div class="grid-item questions-header" name="${answer.aid}">
+            <p>${answer.text}</p>
+          </div>
+          <div class="grid-item questions-header" name="${answer.aid}">
+            Ans By ${answer.ansBy} <br>
+            On ${answer.ansOn} <br>
+            At ${answer.ansAt}
+          </div>
+          <div class="grid-item questions-header" name="${answer.aid}"></div>
+          <hr><hr><hr>
+        `;
+      });
+
+      if (answers.length == 0) AnswersBody.innerHTML += "<i>No answers found!</i>";
+
+      SubmitAnswerDiv.innerHTML = `
+        <button type="button" class="btn btn-primary" style="text-align: center;" onclick="openAnswerQuestion('${question.qid}')">Answer Question</button>
+      `;
+    }
+
+    function openAnswerQuestion(qid) {
+      const AnswersDiv = document.getElementById('Answers');
+      const AnswerAQuestionDiv = document.getElementById('AnswerAQuestion');
+
+      AnswersDiv.style.display = 'none';
+      AnswerAQuestionDiv.style.display = 'block';
+
+      document.getElementById('PostAnswer').qid = qid;
+    }
+
+    function postAnswer(qid) {
+      const AnswerText = document.getElementById('AnswerText').value;
+      const AnswerUsername = document.getElementById('AnswerUsername').value;
+
+      if (AnswerText.length == 0) {
+        showSnackbar('Answer cannot be empty');
+        return;
+      }
+
+      if (AnswerUsername.length == 0) {
+        showSnackbar('Username cannot be empty');
+        return;
+      }
+
+      storeAnswer(qid, AnswerText, AnswerUsername);
+      showSnackbar('Answer Posted');
+
+      document.getElementById('AnswerText').value = '';
+      document.getElementById('AnswerUsername').value = '';
+    }
+
+    function populateTags(tags, questions) {
+      document.getElementById("openQuestionsBtn").classList.remove("active");
+      document.getElementById("openTagsBtn").classList.add("active");
+
+
+      const TagsDiv = document.getElementById('Tags');
+      const TagsGrid = document.getElementById('TagsGrid');
+      document.getElementById("Questions").style.display = 'none';
+      document.getElementById("Answers").style.display = 'none';
+      document.getElementById('AskAQuestion').style.display = 'none';
+      document.getElementById('AnswerAQuestion').style.display = 'none';
+      TagsDiv.style.display = "block";
+
+      TagsGrid.innerHTML = `
+        <div class="grid-item questions-header">
+          <b id="TagsNumber">${tags.length} ${tags.length === 1 ? 'Tag' : 'Tags'}</b>
+        </div>
+        <div class="grid-item questions-header">
+          <b>All Tags</b>
+        </div>
+        <div class="grid-item questions-header">
+          <a href="#AskAQuestion">
+            <button type="button" class="btn btn-primary" onclick="openAskQuestion()"  style="background-color: #165A92">Ask A Question</button>
+          </a>
+        </div>
+      `;
+
+      tags.forEach(tag => {
+        const questsNo = questions.filter(question => question.tagIds.includes(tag.tid)).length;
+
+        TagsGrid.innerHTML += `
+        <div class="grid-item questions-header">
+
+          <div class="card" style="width: 18rem;" onclick="filterQuestions('tags', ['${tag.name}'], 'Questions tagged [${tag.name}]')">
+            <div class="card-body">
+              <h5 class="card-title">${tag.name}</h5>
+              <span class="card-text">${questsNo} ${questsNo.length === 1 ? 'Question' : 'Questions'}</span>
+            </div>
+          </div>
+
+        </div>
+        `;
+      });
+    }
+
+  </script>
+
+</body>
+
+</html>
